@@ -211,6 +211,11 @@ bool TcpSocket::is_valid() const noexcept {
 
 void TcpSocket::close() noexcept {
     if (fd_ >= 0) {
+        // Force the socket to shutdown both reading and writing.
+        // This is crucial in multithreaded environments to immediately
+        // unblock any thread currently waiting in recv() or send()
+        // before we close the file descriptor.
+        ::shutdown(fd_, SHUT_RDWR);
         ::close(fd_);
         fd_ = -1;
     }
