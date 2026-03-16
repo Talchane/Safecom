@@ -298,7 +298,7 @@ int main(int argc, char* argv[]) {
     // Si pas d'arguments valides, menu interactif
     if (!is_server && !is_client) {
         std::cout << "\033[1;37m     Choisissez un mode :\033[0m\n\n";
-        std::cout << "\033[1;36m       [1]\033[0m  🖥️   Héberger une session  (serveur)\n";
+        std::cout << "\033[1;36m       [1]\033[0m  🖥️    Héberger une session  (serveur)\n";
         std::cout << "\033[1;36m       [2]\033[0m  🔗   Rejoindre une session (client)\n";
         std::cout << "\033[1;36m       [3]\033[0m  🚪   Quitter\n\n";
 
