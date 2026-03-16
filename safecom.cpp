@@ -231,8 +231,9 @@ static void print_banner() {
     std::cout << "\033[1;35m"
               << R"(
   ╔══════════════════════════════════════════════════════╗
-  ║            🔒 SAFECOM — Chat Post-Quantique         ║
-  ║         ML-DSA-65 + ML-KEM-768 + XChaCha20          ║
+  ║            SAFECOM — Chat Post-Quantique             ║
+  ║          ML-DSA-65 + ML-KEM-768 + XChaCha20          ║
+  ║              Par Benito | Version 1.1                ║
   ╚══════════════════════════════════════════════════════╝
 )" << "\033[0m" << std::endl;
 }
@@ -250,24 +251,85 @@ static void print_usage(const char* prog) {
 int main(int argc, char* argv[]) {
     print_banner();
 
-    // ---- Parse arguments ----
-    if (argc < 3) {
-        print_usage(argv[0]);
-        return 1;
+    // ---- Menu interactif ----
+    bool is_server = false;
+    bool is_client = false;
+    std::string host;
+    uint16_t port = 0;
+
+    // Vérifier si des arguments CLI ont été fournis
+    if (argc >= 3) {
+        std::string mode_arg = argv[1];
+        if (mode_arg == "--listen" && argc >= 3) {
+            is_server = true;
+            port = static_cast<uint16_t>(std::stoi(argv[2]));
+        } else if (mode_arg == "--connect" && argc >= 4) {
+            is_client = true;
+            host = argv[2];
+            port = static_cast<uint16_t>(std::stoi(argv[3]));
+        }
     }
 
-    std::string mode = argv[1];
-    bool is_server = (mode == "--listen");
-    bool is_client = (mode == "--connect");
-
+    // Si pas d'arguments valides, menu interactif
     if (!is_server && !is_client) {
-        print_usage(argv[0]);
-        return 1;
-    }
+        std::cout << "\033[1;37m     Choisissez un mode :\033[0m\n\n";
+        std::cout << "\033[1;36m       [1]\033[0m  🖥️   Héberger une session  (serveur)\n";
+        std::cout << "\033[1;36m       [2]\033[0m  🔗   Rejoindre une session (client)\n";
+        std::cout << "\033[1;36m       [3]\033[0m  🚪   Quitter\n\n";
 
-    if (is_client && argc < 4) {
-        print_usage(argv[0]);
-        return 1;
+        int choice = 0;
+        while (true) {
+            std::cout << "\033[1;35m     ❯ \033[0m";
+            std::cin >> choice;
+
+            if (std::cin.fail()) {
+                std::cin.clear();
+                std::cin.ignore(10000, '\n');
+                print_error("Entrée invalide. Tapez 1, 2 ou 3.");
+                continue;
+            }
+            std::cin.ignore(10000, '\n');
+
+            if (choice == 3) {
+                std::cout << "\n\033[0;90m     Au revoir ! 🔒\033[0m\n" << std::endl;
+                return 0;
+            }
+            if (choice == 1 || choice == 2) break;
+            print_error("Choix invalide. Tapez 1, 2 ou 3.");
+        }
+
+        is_server = (choice == 1);
+        is_client = (choice == 2);
+
+        print_separator();
+
+        // Demander le port
+        if (is_server) {
+            std::cout << "\033[1;37m     Port d'écoute \033[0;90m(ex: 4444)\033[1;37m :\033[0m ";
+        } else {
+            std::cout << "\033[1;37m     Adresse de l'hôte \033[0;90m(ex: 127.0.0.1)\033[1;37m :\033[0m ";
+            std::getline(std::cin, host);
+            if (host.empty()) host = "127.0.0.1";
+            std::cout << "\033[1;37m     Port de connexion \033[0;90m(ex: 4444)\033[1;37m :\033[0m ";
+        }
+
+        int port_input = 0;
+        while (true) {
+            std::cin >> port_input;
+            if (std::cin.fail() || port_input < 1 || port_input > 65535) {
+                std::cin.clear();
+                std::cin.ignore(10000, '\n');
+                print_error("Port invalide. Entrez un nombre entre 1 et 65535.");
+                std::cout << "\033[1;35m     ❯ \033[0m";
+                continue;
+            }
+            std::cin.ignore(10000, '\n');
+            break;
+        }
+        port = static_cast<uint16_t>(port_input);
+
+        print_separator();
+        std::cout << std::endl;
     }
 
     // ---- Signal handler ----
@@ -275,32 +337,29 @@ int main(int argc, char* argv[]) {
 
     try {
         // ---- Initialisation du moteur cryptographique ----
-        std::cout << "[Safecom] Initialisation du moteur cryptographique..." << std::endl;
+        print_status("Initialisation du moteur cryptographique...");
         CryptoEngine engine;
-        std::cout << "[Safecom] ✓ Clés d'identité ML-DSA-65 générées." << std::endl;
+        print_status("Clés d'identité ML-DSA-65 générées.", true);
 
         // Générer la paire KEM éphémère pour cette session
         KemKeyPair kem_kp = engine.generate_kem_keypair();
-        std::cout << "[Safecom] ✓ Clés éphémères ML-KEM-768 générées." << std::endl;
+        print_status("Clés éphémères ML-KEM-768 générées.", true);
 
         // ---- Connexion TCP ----
         TcpSocket sock;
 
         if (is_server) {
-            uint16_t port = static_cast<uint16_t>(std::stoi(argv[2]));
-            std::cout << "[Safecom] Écoute sur le port " << port << "..." << std::endl;
+            print_status("Écoute sur le port " + std::to_string(port) + "...");
             sock = TcpSocket::listen_and_accept(port);
-            std::cout << "[Safecom] ✓ Client connecté !" << std::endl;
+            print_status("Client connecté !", true);
         } else {
-            std::string host = argv[2];
-            uint16_t port = static_cast<uint16_t>(std::stoi(argv[3]));
-            std::cout << "[Safecom] Connexion à " << host << ":" << port << "..." << std::endl;
+            print_status("Connexion à " + host + ":" + std::to_string(port) + "...");
             sock = TcpSocket::connect_to(host, port);
-            std::cout << "[Safecom] ✓ Connecté au serveur !" << std::endl;
+            print_status("Connecté au serveur !", true);
         }
 
         // ---- Handshake : échange de clés ----
-        std::cout << "[Safecom] Échange de clés en cours..." << std::endl;
+        print_status("Échange de clés en cours...");
 
         // Envoyer nos clés publiques
         ByteVec handshake_msg = build_handshake(
@@ -315,25 +374,25 @@ int main(int argc, char* argv[]) {
         ByteVec peer_kem_pk;
         parse_handshake(peer_handshake, peer_dsa_pk, peer_kem_pk);
 
-        std::cout << "[Safecom] ✓ Clé d'identité du pair reçue (" 
-                  << peer_dsa_pk.size() << " octets)" << std::endl;
-        std::cout << "[Safecom] ✓ Clé éphémère du pair reçue (" 
-                  << peer_kem_pk.size() << " octets)" << std::endl;
+        print_status("Clé d'identité du pair reçue (" + std::to_string(peer_dsa_pk.size()) + " octets)", true);
+        print_status("Clé éphémère du pair reçue (" + std::to_string(peer_kem_pk.size()) + " octets)", true);
 
         // Afficher l'empreinte de la clé DSA du pair (premiers 16 octets en hex)
         {
-            std::cout << "[Safecom] Empreinte du pair : ";
+            std::string fingerprint = "Empreinte du pair : ";
             for (size_t i = 0; i < 16 && i < peer_dsa_pk.size(); ++i) {
                 char hex[4];
                 snprintf(hex, sizeof(hex), "%02x", peer_dsa_pk[i]);
-                std::cout << hex;
-                if (i % 2 == 1) std::cout << " ";
+                fingerprint += hex;
+                if (i % 2 == 1) fingerprint += " ";
             }
-            std::cout << "..." << std::endl;
+            fingerprint += "...";
+            print_status(fingerprint, true);
         }
 
-        std::cout << "\n[Safecom] ✓ Session sécurisée établie !"
-                  << "\n[Safecom] Tapez vos messages. /quit pour quitter.\n" << std::endl;
+        print_separator();
+        std::cout << "\n\033[1;32m     ✓ Session sécurisée établie !\033[0m\n";
+        std::cout << "\033[0;90m     Tapez vos messages. /quit pour quitter.\033[0m\n" << std::endl;
 
         // ---- Lancer le thread de réception ----
         std::thread recv_thread(recv_loop,
@@ -382,7 +441,8 @@ int main(int argc, char* argv[]) {
         sodium_memzero(peer_dsa_pk.data(), peer_dsa_pk.size());
         sodium_memzero(peer_kem_pk.data(), peer_kem_pk.size());
 
-        std::cout << "\n[Safecom] Déconnexion. Clés effacées. 🔒" << std::endl;
+        print_separator();
+        std::cout << "\033[1;35m     Déconnexion. Clés effacées. 🔒\033[0m\n" << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "\n[ERREUR FATALE] " << e.what() << std::endl;
