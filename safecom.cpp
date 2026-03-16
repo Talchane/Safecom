@@ -188,8 +188,13 @@ static void recv_loop(
         } catch (const std::runtime_error&) {
             // Connexion fermée ou erreur réseau
             if (g_running) {
-                safe_print("\n[Safecom] Connexion fermée par le pair.");
                 g_running = false;
+                std::cout << "\n\033[1;33m[Safecom] Connexion fermée par le pair.\033[0m\n";
+                // L'autre thread de saisie (main) est bloqué dans std::getline.
+                // Pour éviter d'obliger l'utilisateur à taper "Entrée", on coupe court ici.
+                std::cout << "    ─────────────────────────────────────────────────────────\n";
+                std::cout << "\033[1;35m     Déconnexion. Clés effacées. 🔒\033[0m\n" << std::endl;
+                std::exit(0);
             }
             break;
         }
@@ -236,13 +241,12 @@ static void print_banner() {
     ███████║██║  ██║██║     ███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║
     ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝
     )" << "\033[0m";
-    std::cout << "\033[0;90m"
-              << "    ─────────────────────────────────────────────────────────\n"
-              << "\033[0m";
+
     std::cout << "\033[1;37m"
+              << "    ─────────────────────────────────────────────────────────\n"
               << "        Chat Post-Quantique Sécurisé\n"
-              << "     ML-DSA-65  ·  ML-KEM-768  ·  XChaCha20-Poly1305\n"
-              << "     Par Benito  |  Version 1.1\n"
+              << "        ML-DSA-65  ·  ML-KEM-768  ·  XChaCha20-Poly1305\n"
+              << "        Par Benito  |  Version 1.1\n"
               << "    ─────────────────────────────────────────────────────────\n"
               << "\033[0m" << std::endl;
 }
