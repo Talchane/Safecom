@@ -246,7 +246,7 @@ static void print_banner() {
               << "    ─────────────────────────────────────────────────────────\n"
               << "        Chat Post-Quantique Sécurisé\n"
               << "        ML-DSA-65  ·  ML-KEM-768  ·  XChaCha20-Poly1305\n"
-              << "        Par Benito  |  Version 1.1\n"
+              << "        Par Benito  |  Version 1.2\n"
               << "    ─────────────────────────────────────────────────────────\n"
               << "\033[0m" << std::endl;
 }

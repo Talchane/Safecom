@@ -91,6 +91,29 @@ int main() {
             std::cout << "[✓] Signature invalide correctement rejetée : " << e.what() << std::endl;
         }
 
+        // --- Test : Bit-flip (altération du ciphertext) ---
+        std::cout << "\n[*] Test de détection d'altération (Bit-flip)..." << std::endl;
+        KemKeyPair bob_kem_flip = bob.generate_kem_keypair();
+        
+        // Alice chiffre un nouveau message légitime
+        EncryptedPacket tampered_packet = alice.encrypt_for_peer(plaintext, bob_kem_flip.public_key);
+        
+        // Un attaquant modifie 1 seul bit dans le ciphertext !!
+        if (!tampered_packet.aead_ciphertext.empty()) {
+            tampered_packet.aead_ciphertext[0] ^= 0x01; // Inversion du bit du 1er octet
+        }
+        
+        try {
+            // Bob essaie de déchiffrer. Ça doit crasher car la signature / le MAC sera invalide !
+            (void)bob.decrypt_from_peer(tampered_packet, alice.get_dsa_public_key(), bob_kem_flip.private_key);
+            std::cerr << "[✗] TEST ÉCHOUÉ — L'altération du ciphertext n'a pas été détectée !" << std::endl;
+            return EXIT_FAILURE;
+        } catch (const SignatureVerificationError& e) {
+            std::cout << "[✓] Altération (Bit-flip) détectée au niveau de la signature ML-DSA : " << e.what() << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "[✓] Altération (Bit-flip) détectée (MAC/déchiffrement) : " << e.what() << std::endl;
+        }
+
         std::cout << "\n========================================" << std::endl;
         std::cout << "  Tous les tests ont réussi ! 🎉" << std::endl;
         std::cout << "========================================" << std::endl;
