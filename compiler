@@ -1,0 +1,2 @@
+g++ -std=c++17 -O2 safecom.cpp CryptoEngine.cpp Network.cpp -o safecom -lsodium -loqs -lcrypto -w
+g++ -std=c++17 -O2 main_test.cpp CryptoEngine.cpp -o test -lsodium -loqs -lcrypto -w
