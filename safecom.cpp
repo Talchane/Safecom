@@ -249,7 +249,7 @@ static void print_banner() {
               << "    ─────────────────────────────────────────────────────────\n"
               << "        Chat Post-Quantique Sécurisé\n"
               << "        ML-DSA-65  ·  ML-KEM-768  ·  XChaCha20-Poly1305\n"
-              << "        Par Benito  |  Version 1.3\n"
+              << "        Par Benito  |  Version 1.4\n"
               << "    ─────────────────────────────────────────────────────────\n"
               << "\033[0m" << std::endl;
 }
@@ -444,18 +444,41 @@ int main(int argc, char* argv[]) {
         print_status("Clé d'identité du pair reçue (" + std::to_string(peer_dsa_pk.size()) + " octets)", true);
         print_status("Clé éphémère du pair reçue (" + std::to_string(peer_kem_pk.size()) + " octets)", true);
 
-        // Afficher l'empreinte de la clé DSA du pair (premiers 16 octets en hex)
+        // Calculer une empreinte de session COMMUNE aux deux pairs
+        // On trie les deux clés publiques pour que l'ordre (Serveur/Client) n'importe pas
         {
-            std::string fingerprint = "Empreinte du pair : ";
-            for (size_t i = 0; i < 16 && i < peer_dsa_pk.size(); ++i) {
+            const ByteVec& my_dsa_pk = engine.get_dsa_public_key();
+            ByteVec key1 = my_dsa_pk < peer_dsa_pk ? my_dsa_pk : peer_dsa_pk;
+            ByteVec key2 = my_dsa_pk < peer_dsa_pk ? peer_dsa_pk : my_dsa_pk;
+
+            ByteVec combined;
+            combined.reserve(key1.size() + key2.size());
+            combined.insert(combined.end(), key1.begin(), key1.end());
+            combined.insert(combined.end(), key2.begin(), key2.end());
+
+            // Hacher avec SHA-256 via libsodium
+            ByteVec hash(crypto_hash_sha256_BYTES);
+            crypto_hash_sha256(hash.data(), combined.data(), combined.size());
+
+            std::string fingerprint = "Empreinte commune de la session : ";
+            for (size_t i = 0; i < 16 && i < hash.size(); ++i) {
                 char hex[4];
-                snprintf(hex, sizeof(hex), "%02x", peer_dsa_pk[i]);
+                snprintf(hex, sizeof(hex), "%02x", hash[i]);
                 fingerprint += hex;
                 if (i % 2 == 1) fingerprint += " ";
             }
-            fingerprint += "...";
             print_status(fingerprint, true);
         }
+
+        print_separator();
+        std::cout << "\n\033[1;33m     [!] VÉRIFICATION DE SÉCURITÉ (Anti Man-in-the-Middle)\033[0m\n";
+        std::cout << "\033[1;37m     Pour garantir que votre connexion n'est pas sur écoute, veuillez\033[0m\n";
+        std::cout << "\033[1;37m     contacter votre interlocuteur par un autre moyen (Appel, SMS...)\033[0m\n";
+        std::cout << "\033[1;37m     et vérifier qu'il voit EXACTEMENT la même empreinte que vous.\033[0m\n\n";
+        std::cout << "\033[1;35m     Appuyez sur [Entrée] une fois la vérification effectuée...\033[0m";
+        
+        std::string dummy;
+        std::getline(std::cin, dummy);
 
         print_separator();
         std::cout << "\n\033[1;32m     ✓ Session sécurisée établie !\033[0m\n";
