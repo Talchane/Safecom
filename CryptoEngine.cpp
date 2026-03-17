@@ -1,5 +1,6 @@
 /**
  * @file CryptoEngine.cpp
+ * @author Benoît Ferrandini
  * @brief Implémentation du moteur cryptographique hybride post-quantique.
  *
  * Dépendances :

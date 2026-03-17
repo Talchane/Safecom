@@ -1,5 +1,6 @@
 /**
  * @file Network.cpp
+ * @author Benoît Ferrandini
  * @brief Implémentation de la couche réseau TCP POSIX pour Safecom.
  */
 

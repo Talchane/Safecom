@@ -1,6 +1,7 @@
 /**
  * @file Network.hpp
- * @brief Abstraction TCP POSIX pour Safecom (Linux/Tails OS).
+ * @author Benoît Ferrandini
+ * @brief Couche réseau bas niveau (TCP) pour messagerie sécurisée.nux/Tails OS).
  *
  * Fournit une classe TcpSocket avec envoi/réception longueur-préfixé
  * et gestion RAII du descripteur de fichier.

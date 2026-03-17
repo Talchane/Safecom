@@ -1,5 +1,6 @@
 /**
  * @file CryptoEngine.hpp
+ * @author Benoît Ferrandini
  * @brief Coeur cryptographique hybride post-quantique pour messagerie sécurisée.
  *
  * Architecture :

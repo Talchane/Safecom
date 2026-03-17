@@ -1,5 +1,6 @@
 /**
  * @file safecom.cpp
+ * @author Benoît Ferrandini
  * @brief Application de chat sécurisé post-quantique en ligne de commande.
  *
  * Usage :
@@ -21,6 +22,7 @@
 #include <sodium.h>
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <iostream>
 #include <mutex>
@@ -51,6 +53,7 @@ void safe_print(Args&&... args) {
 /** Gestionnaire SIGINT (Ctrl+C). */
 void signal_handler(int) {
     g_running = false;
+    std::exit(0);
 }
 
 // ============================================================================
@@ -246,7 +249,7 @@ static void print_banner() {
               << "    ─────────────────────────────────────────────────────────\n"
               << "        Chat Post-Quantique Sécurisé\n"
               << "        ML-DSA-65  ·  ML-KEM-768  ·  XChaCha20-Poly1305\n"
-              << "        Par Benito  |  Version 1.2\n"
+              << "        Par Benito  |  Version 1.3\n"
               << "    ─────────────────────────────────────────────────────────\n"
               << "\033[0m" << std::endl;
 }
@@ -297,30 +300,52 @@ int main(int argc, char* argv[]) {
 
     // Si pas d'arguments valides, menu interactif
     if (!is_server && !is_client) {
-        std::cout << "\033[1;37m     Choisissez un mode :\033[0m\n\n";
-        std::cout << "\033[1;36m       [1]\033[0m  🖥️    Héberger une session  (serveur)\n";
-        std::cout << "\033[1;36m       [2]\033[0m  🔗   Rejoindre une session (client)\n";
-        std::cout << "\033[1;36m       [3]\033[0m  🚪   Quitter\n\n";
-
         int choice = 0;
         while (true) {
-            std::cout << "\033[1;35m     ❯ \033[0m";
-            std::cin >> choice;
+            std::cout << "\033[1;37m     Choisissez un mode :\033[0m\n\n";
+            std::cout << "\033[1;36m       [1]\033[0m  🖥️    Héberger une session  (serveur)\n";
+            std::cout << "\033[1;36m       [2]\033[0m  🔗   Rejoindre une session (client)\n";
+            std::cout << "\033[1;36m       [3]\033[0m  ℹ️    À propos du chiffrement\n";
+            std::cout << "\033[1;36m       [4]\033[0m  🚪   Quitter\n\n";
 
-            if (std::cin.fail()) {
-                std::cin.clear();
+            while (true) {
+                std::cout << "\033[1;35m     ❯ \033[0m";
+                std::cin >> choice;
+
+                if (std::cin.fail()) {
+                    std::cin.clear();
+                    std::cin.ignore(10000, '\n');
+                    print_error("Entrée invalide. Tapez 1, 2, 3 ou 4.");
+                    continue;
+                }
                 std::cin.ignore(10000, '\n');
-                print_error("Entrée invalide. Tapez 1, 2 ou 3.");
-                continue;
-            }
-            std::cin.ignore(10000, '\n');
 
-            if (choice == 3) {
-                std::cout << "\n\033[0;90m     Au revoir ! 🔒\033[0m\n" << std::endl;
-                return 0;
+                if (choice == 4) {
+                    std::cout << "\n\033[0;90m     Au revoir ! 🔒\033[0m\n" << std::endl;
+                    return 0;
+                } else if (choice == 3) {
+                    print_separator();
+                    std::cout << "\033[1;34m        --- À propos de la technologie Safecom ---\033[0m\n\n";
+                    std::cout << "\033[1;36m        1. ML-KEM (Kyber) :\033[0m L'échange de clés asymétrique post-quantique.\n";
+                    std::cout << "           \033[0;90mPermet d'établir un secret partagé. Basé sur des problèmes mathématiques\033[0m\n";
+                    std::cout << "           \033[0;90mdans des réseaux euclidiens de plusieurs milliers de dimensions. Ce problème\033[0m\n";
+                    std::cout << "           \033[0;90mest incassable, même pour les supercalculateurs quantiques de demain.\033[0m\n\n";
+                    std::cout << "\033[1;36m        2. XChaCha20-Poly1305 :\033[0m Le chiffrement symétrique du flux.\n";
+                    std::cout << "           \033[0;90mGrâce à la clé unique échangée via ML-KEM, votre message est chiffré\033[0m\n";
+                    std::cout << "           \033[0;90mbit par bit puis verrouillé avec une empreinte (AEAD) inaltérable.\033[0m\n\n";
+                    std::cout << "\033[1;36m        3. ML-DSA (Dilithium) :\033[0m La signature authentifiée post-quantique.\n";
+                    std::cout << "           \033[0;90mTous les messages sont signés cryptographiquement. Cela prouve de manière\033[0m\n";
+                    std::cout << "           \033[0;90mirréfutable l'authenticité de l'expéditeur et garantit l'intégrité du message.\033[0m\n";
+                    print_separator();
+                    std::cout << std::endl;
+                    break;
+                } else if (choice == 1 || choice == 2) {
+                    break;
+                } else {
+                    print_error("Choix invalide. Tapez 1, 2, 3 ou 4.");
+                }
             }
             if (choice == 1 || choice == 2) break;
-            print_error("Choix invalide. Tapez 1, 2 ou 3.");
         }
 
         is_server = (choice == 1);
@@ -379,8 +404,25 @@ int main(int argc, char* argv[]) {
             print_status("Client connecté !", true);
         } else {
             print_status("Connexion à " + host + ":" + std::to_string(port) + "...");
-            sock = TcpSocket::connect_to(host, port);
-            print_status("Connecté au serveur !", true);
+            bool connected = false;
+            for (int attempt = 1; attempt <= 3; ++attempt) {
+                try {
+                    sock = TcpSocket::connect_to(host, port);
+                    connected = true;
+                    break;
+                } catch (const std::exception& e) {
+                    if (attempt < 3) {
+                        print_status("Échec (tentative " + std::to_string(attempt) + "/3). Nouvelle tentative dans 5 secondes...");
+                        std::this_thread::sleep_for(std::chrono::seconds(5));
+                    } else {
+                        print_status("Échec (tentative 3/3).");
+                        throw std::runtime_error("Impossible de se connecter au serveur après 3 tentatives.");
+                    }
+                }
+            }
+            if (connected) {
+                print_status("Connecté au serveur !", true);
+            }
         }
 
         // ---- Handshake : échange de clés ----
